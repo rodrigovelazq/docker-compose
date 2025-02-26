@@ -1,0 +1,43 @@
+services:
+  network-deploy-service:
+    networks:
+      - rodrigovelazq
+
+  microservice-db-config:
+    extends:
+      service: network-deploy-service
+    image: postgres:16
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d productsdb || exit 1"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 10s
+    environment:
+      POSTGRES_DB: productsdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+
+  microservice-base-config:
+    extends:
+      service: network-deploy-service
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+
+  microservice-configserver-config:
+    extends:
+      service: microservice-base-config
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://configserver:8071/"
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin123
+
+  microservice-eureka-config:
+    extends:
+      service: microservice-configserver-config
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8761/eureka/
+
