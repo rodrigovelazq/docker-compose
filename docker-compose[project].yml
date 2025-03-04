@@ -32,11 +32,8 @@ services:
     container_name: registry-ms
     ports:
       - "8761:8761"
-    #depends_on:
-    #  configserver:
-    #    condition: service_healthy
     healthcheck:
-      test: "curl --fail --silent localhost:8070/actuator/health/readiness | grep UP || exit 1"
+      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
       interval: 10s
       timeout: 5s
       retries: 10
@@ -58,11 +55,22 @@ services:
       SPRING_DATASOURCE_USERNAME: "admin"
       SPRING_DATASOURCE_PASSWORD: "admin123"
       SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.PostgreSQLDialect"
-    #depends_on:
-    #  productsdb:
-    #    condition: service_healthy
-    #  configserver:
-    #    condition: service_healthy
+    restart: always
+    extends:
+      file: common-config.yml
+      service: microservice-configserver-config
+
+  carts:
+    image: "cart-service"
+    container_name: carts-ms
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_APPLICATION_NAME: "cart-service"
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://productsdb:5432/productsdb"
+      SPRING_DATASOURCE_USERNAME: "admin"
+      SPRING_DATASOURCE_PASSWORD: "admin123"
+      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.PostgreSQLDialect"
     restart: always
     extends:
       file: common-config.yml
@@ -73,13 +81,6 @@ services:
     container_name: gatewayserver-ms
     ports:
       - "8072:8072"
-    #depends_on:
-    #  accounts:
-    #    condition: service_healthy
-    #  loans:
-    #    condition: service_healthy
-    #  cards:
-    #    condition: service_healthy
     environment:
       SPRING_APPLICATION_NAME: "gatewayserver"
     extends:
