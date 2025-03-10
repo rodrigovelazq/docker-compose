@@ -1,4 +1,4 @@
-services:
+services:  
   read:
     image: grafana/loki:3.1.2
     command: "-config.file=/etc/loki/config.yaml -target=read"
@@ -7,7 +7,7 @@ services:
       - 7946
       - 9095
     volumes:
-      - ./loki-config.yaml:/etc/loki/config.yaml
+      - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
     depends_on:
       - minio
     healthcheck:
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks: &loki-dns
-      rodrigovelazq:
+      eazybank:
         aliases:
           - loki
 
@@ -28,7 +28,7 @@ services:
       - 7946
       - 9095
     volumes:
-      - ./loki-config.yaml:/etc/loki/config.yaml
+      - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1" ]
       interval: 10s
@@ -42,7 +42,7 @@ services:
   alloy:
     image: grafana/alloy:v1.5.1
     volumes:
-      - ./alloy-local-config.yaml:/etc/alloy/config.alloy:ro
+      - ../observability/alloy/alloy-local-config.yaml:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock
     command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     ports:
@@ -86,7 +86,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     extends:
       file: common-config.yml
       service: network-deploy-service
@@ -99,7 +99,7 @@ services:
       - "3110:3100"
       - "4318:4318"
     volumes:
-      - ./tempo.yml:/etc/tempo-config.yml
+      - ../observability/tempo/tempo.yml:/etc/tempo-config.yml
     extends:
       file: common-config.yml
       service: network-deploy-service
@@ -120,7 +120,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ../observability/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" ]
       interval: 10s
@@ -133,7 +133,7 @@ services:
   backend:
     image: grafana/loki:3.1.2
     volumes:
-      - ./loki-config.yaml:/etc/loki/config.yaml
+      - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
     ports:
       - "3100"
       - "7946"
@@ -213,103 +213,3 @@ services:
     extends:
       file: common-config.yml
       service: network-deploy-service
-####################################################################
-
-  productsdb:
-    image: postgres:16
-    container_name: productsdb
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: productsdb
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-    extends:
-      file: common-config.yml
-      service: microservice-db-config
-
-  configserver:
-    image: "configuration-server"
-    container_name: configuration-server-ms
-    ports:
-      - "8071:8071"
-    healthcheck:
-      test: "curl --fail --silent localhost:8071/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    environment:
-      OTEL_SERVICE_NAME: "configserver"
-    extends:
-      file: common-config.yml
-      service: microservice-base-config
-
-  eurekaserver:
-    image: "registry-server"
-    container_name: registry-ms
-    ports:
-      - "8761:8761"
-    healthcheck:
-      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    extends:
-      file: common-config.yml
-      service: microservice-configserver-config
-    environment:
-      SPRING_APPLICATION_NAME: "eurekaserver"
-      OTEL_SERVICE_NAME: "eurekaserver"
-
-  gatewayserver:
-    image: "api-gateway"
-    container_name: gatewayserver-ms
-    ports:
-      - "8072:8072"
-    environment:
-      SPRING_APPLICATION_NAME: "gatewayserver"
-      OTEL_SERVICE_NAME: "gatewayserver"
-    extends:
-      file: common-config.yml
-      service: microservice-eureka-config
-
-  products:
-    image: "product-service"
-    container_name: products-ms
-    ports:
-      - "8081:8081"
-    environment:
-      SPRING_APPLICATION_NAME: "product-service"
-      SPRING_DATASOURCE_URL: "jdbc:postgresql://productsdb:5432/productsdb"
-      SPRING_DATASOURCE_USERNAME: "admin"
-      SPRING_DATASOURCE_PASSWORD: "admin123"
-      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.PostgreSQLDialect"
-      OTEL_SERVICE_NAME: "products"
-    restart: always
-    extends:
-      file: common-config.yml
-      service: microservice-eureka-config
-
-  carts:
-    image: "cart-service"
-    container_name: carts-ms
-    ports:
-      - "8082:8082"
-    environment:
-      SPRING_APPLICATION_NAME: "cart-service"
-      SPRING_DATASOURCE_URL: "jdbc:postgresql://productsdb:5432/productsdb"
-      SPRING_DATASOURCE_USERNAME: "admin"
-      SPRING_DATASOURCE_PASSWORD: "admin123"
-      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.PostgreSQLDialect"
-      OTEL_SERVICE_NAME: "carts"
-    restart: always
-    extends:
-      file: common-config.yml
-      service: microservice-eureka-config
-
-networks:
-  rodrigovelazq:
-    driver: "bridge"
-
